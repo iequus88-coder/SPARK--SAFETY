@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   try {
     const bodyData = req.body;
     
+    // 사용자의 마지막 질문에 '추가 심화 대책 및 솔루션' 유도 안내 문구를 백그라운드에서 은밀히 덧붙입니다.
     if (bodyData && bodyData.contents && bodyData.contents.length > 0) {
       const lastContent = bodyData.contents[bodyData.contents.length - 1];
       if (lastContent && lastContent.parts && lastContent.parts.length > 0) {
@@ -57,7 +58,8 @@ export default async function handler(req, res) {
       tools: [{ "google_search": {} }]
     };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // 최신 표준 모델인 gemini-2.5-flash로 주소를 정확히 맞췄습니다!
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
