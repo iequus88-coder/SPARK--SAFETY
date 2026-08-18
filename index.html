@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Safe Consulting (세이프 컨설팅) - 통합 안전법규 AI</title>
     
     <!-- Tailwind CSS -->
@@ -79,7 +79,6 @@
     <!-- 메인 대화창 -->
     <main class="flex-1 overflow-y-auto p-4 md:p-6 pb-32" id="chatContainer">
         <div class="max-w-4xl mx-auto flex flex-col gap-6" id="chatLog">
-            <!-- 기본 환영 메시지 -->
             <div class="flex gap-4">
                 <div class="w-10 h-10 rounded-full bg-primary-600 text-white flex items-center justify-center shrink-0 shadow-md">
                     <i class="fa-solid fa-shield"></i>
@@ -146,7 +145,7 @@
         
         let apiKey = localStorage.getItem('gemini_api_key') || '';
 
-        // 똑순이의 뇌 구조 (2원화 및 정부지원 안내 포함)
+        // 똑순이의 뇌 구조 (2원화 및 정부지원 안내 포함, 문체 규칙 적용)
         const systemPrompt = `당신은 대한민국 최고의 현장 맞춤형 산업안전 및 관련 법규 전문 AI 컨설턴트 'Safe Consulting (세이프 컨설팅)'임.
 주요 대상: 현장 안전관리자, 작업 소장, 발주청 감독관, 산업안전지도사/안전기술사 수험생 등.
 범위: 산업안전보건법, 중대재해처벌법, 건설기술진흥법, 건설산업기본법, 전기공사업법, 정보통신공사업법 등 현장 관련 법규 교차 분석.
@@ -199,7 +198,9 @@
         // 다운로드 기능 (다이어그램 깨짐 방지 적용)
         saveBtn.addEventListener('click', () => {
             const htmlHeader = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>Safe Consulting (세이프 컨설팅) 기록</title><script src="https://cdn.tailwindcss.com"><\/script><script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"><\/script><style>body{background-color:#f8fafc; padding:2rem;} .chat-container {max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);} .prose p, .prose li { font-size: 1.1rem; line-height: 1.7; } .mermaid { background: white; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; margin: 1rem 0; overflow-x: auto; }</style></head><body><div class="chat-container">`;
+            
             const chatContent = document.getElementById('chatLog').innerHTML;
+            
             const htmlFooter = `</div><script>mermaid.initialize({startOnLoad: true, theme: 'neutral', securityLevel: 'loose'});<\/script></body></html>`;
             
             const fullHtml = htmlHeader + chatContent + htmlFooter;
@@ -231,7 +232,9 @@
                     </div>
                 `;
             } else {
+                // 마크다운 파싱 및 보안 처리
                 let parsedHtml = DOMPurify.sanitize(marked.parse(text));
+                
                 msgDiv.innerHTML = `
                     <div class="w-10 h-10 rounded-full bg-primary-600 text-white flex items-center justify-center shrink-0 shadow-md">
                         <i class="fa-solid fa-shield"></i>
@@ -245,13 +248,14 @@
             chatLog.appendChild(msgDiv);
             window.scrollTo(0, document.body.scrollHeight);
 
-            // 다이어그램 처리
+            // 다이어그램(Mermaid) 렌더링 처리
             if(sender === 'model') {
                 const codeBlocks = msgDiv.querySelectorAll('pre code.language-mermaid');
                 codeBlocks.forEach((block, index) => {
                     const pre = block.parentElement;
                     const div = document.createElement('div');
                     div.className = 'mermaid';
+                    // 특수문자 오류 방지(정규식 변환)
                     let code = block.textContent;
                     code = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
                     div.textContent = code;
@@ -272,7 +276,7 @@
                     <i class="fa-solid fa-shield"></i>
                 </div>
                 <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-200 flex items-center gap-2 text-slate-500">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i> 분석 중입니다...
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Safe Consulting (세이프 컨설팅)이 법규를 분석 중입니다...
                 </div>
             `;
             chatLog.appendChild(msgDiv);
@@ -284,7 +288,7 @@
             if(el) el.remove();
         }
 
-        // 3.5 flash lite 적용 로직
+        // AI 메시지 전송 로직
         async function sendMessage() {
             const text = userInput.value.trim();
             if(!text) return;
@@ -298,13 +302,14 @@
             const loadingId = showLoading();
 
             try {
+                // 3.5 flash lite 로 통일 및 apiChatHistory 변수 통일
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: apiChatHistory })
                 });
 
-                if (!response.ok) throw new Error(`API 에러: ${response.status}`);
+                if (!response.ok) throw new Error(`API 통신 에러: ${response.status}`);
                 
                 const data = await response.json();
                 const replyText = data.candidates[0].content.parts[0].text;
@@ -316,29 +321,34 @@
             } catch (error) {
                 console.error(error);
                 removeLoading(loadingId);
-                appendMessage('model', `**오류 발생:** 통신 중 문제가 발생했습니다. API 키를 확인해주세요.\n\n상세: ${error.message}`);
-                apiChatHistory.pop();
+                appendMessage('model', `**오류 발생:** API 호출 중 문제가 발생했습니다. API 키가 정확한지 확인해 주세요.\n\n상세: ${error.message}`);
+                apiChatHistory.pop(); // 실패 시 마지막 질문 제거
             }
         }
 
+        // 이벤트 리스너
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => {
             if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
         });
 
-        // 음성 인식 및 입력 조합 마법 추가
+        // 음성 인식 (마이크) 로직 (연속 듣기 기능 추가 및 중복 입력 방지 완료)
         if ('webkitSpeechRecognition' in window) {
             const recognition = new webkitSpeechRecognition();
             recognition.lang = 'ko-KR';
-            recognition.interimResults = true; // 모바일에서 실시간으로 부드럽게 입력되도록 true로 변경
+            recognition.interimResults = true;
+            recognition.continuous = true; // ★ 마이크 숨 고를 때 꺼지는 현상 방지 옵션
             recognition.maxAlternatives = 1;
 
             let isRecording = false;
-            let originalText = ""; // 마이크 켜기 전 미리 복사해둔 법조문 저장용 안전금고
+            let originalText = ""; // 안전 금고
 
             micBtn.addEventListener('click', () => {
-                if(isRecording) { recognition.stop(); return; }
-                originalText = userInput.value; // 녹음 시작 직전의 텍스트(법조문)를 저장
+                if(isRecording) { 
+                    recognition.stop(); 
+                    return; 
+                }
+                originalText = userInput.value;
                 recognition.start();
             });
 
@@ -347,25 +357,25 @@
                 micBtn.classList.add('bg-red-100', 'text-red-600', 'border-red-300');
                 micBtn.classList.remove('bg-slate-100', 'text-slate-600', 'border-slate-300');
                 micBtn.innerHTML = '<i class="fa-solid fa-microphone-lines fa-fade"></i>';
-                userInput.placeholder = "말씀해 주세요. 듣고 있습니다...";
+                // 안내 문구 변경
+                userInput.placeholder = "말씀해 주세요. (질문이 끝난 후 다시 마이크 버튼을 눌러주세요)";
             };
 
             recognition.onresult = function(event) {
-                // 현재까지 인식된 모든 음성을 하나로 깔끔하게 합침
                 let currentSpeech = '';
+                // 연속 모드에서도 전체 인식된 결과를 깔끔하게 하나로 합침
                 for (let i = 0; i < event.results.length; i++) {
                     currentSpeech += event.results[i][0].transcript;
                 }
                 
-                // 무식하게 더하는 것(+=)이 아니라, [기존 법조문 + 현재 음성]으로 화면을 깔끔하게 덮어씀 (중복 방지)
+                // 중복 복사 방지 로직: 원본 텍스트 + 방금 인식된 전체 텍스트
                 if (originalText.trim() !== '') {
                     userInput.value = originalText + '\n\n🎤 ' + currentSpeech;
                 } else {
                     userInput.value = currentSpeech;
                 }
                 
-                // 음성 길이에 맞춰 텍스트 창 크기를 위로 부드럽게 늘려줌
-                userInput.dispatchEvent(new Event('input')); 
+                userInput.dispatchEvent(new Event('input')); // 창 크기 자동 조절
             };
 
             recognition.onend = function() {
@@ -373,13 +383,13 @@
                 micBtn.classList.remove('bg-red-100', 'text-red-600', 'border-red-300');
                 micBtn.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-300');
                 micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-                // 핵심 변경 부분: 기본 안내 문구 변경
                 userInput.placeholder = "법조문을 복사해 붙여넣고 마이크를 눌러 질문하시거나, 직접 입력하세요...";
             };
         } else {
-            micBtn.style.display = 'none';
+            micBtn.style.display = 'none'; // 지원하지 않는 브라우저 숨김
         }
 
+        // 초기 시작 검사
         window.addEventListener('DOMContentLoaded', () => {
             if(!apiKey) openModal();
         });
